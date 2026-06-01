@@ -1,0 +1,7 @@
+{"id":"zh_short_01","text":"你好，這是一段在 DGX Spark 上執行的中文語音合成測試。"}
+{"id":"zh_short_02","text":"請用自然清楚的語氣，說明本機推論已經開始運作。"}
+{"id":"en_short_01","text":"This is a short English speech synthesis test running on DGX Spark."}
+{"id":"en_short_02","text":"VoxCPM2 should generate clear, natural, and expressive speech."}
+{"id":"mixed_01","text":"這是一段混合語言測試，VoxCPM2 is generating speech locally."}
+{"id":"numbers_01","text":"請朗讀數字測試：二零二六年六月一日，版本是 2.0，延遲約三百毫秒。"}
+{"id":"long_01","text":"在這段較長的測試中，我們會觀察語音的穩定度、斷句、節奏，以及中英文切換時的自然程度，並記錄每個案例的生成時間與音訊長度。"}

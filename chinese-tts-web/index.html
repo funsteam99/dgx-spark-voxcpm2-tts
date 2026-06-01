@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>中文語音合成</title>
+  <style>
+    :root {
+      --ink: #16231d;
+      --muted: #68746f;
+      --paper: #f5f0e7;
+      --panel: #fffdf8;
+      --line: #d8d0c1;
+      --green: #27745a;
+      --red: #b84c3c;
+      --gold: #b58327;
+      --blue: #436d9b;
+      --shadow: 0 22px 70px rgba(34, 38, 31, .14);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(39, 116, 90, .08) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(39, 116, 90, .07) 1px, transparent 1px),
+        var(--paper);
+      background-size: 34px 34px;
+    }
+
+    button, textarea, input, select {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 30px 0 46px;
+      display: grid;
+      gap: 24px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 24px;
+      align-items: end;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.3rem, 7vw, 6.4rem);
+      line-height: .9;
+      letter-spacing: 0;
+    }
+
+    .status {
+      border: 1px solid var(--ink);
+      background: var(--panel);
+      padding: 14px;
+      min-height: 90px;
+      display: grid;
+      align-content: space-between;
+    }
+
+    .status strong {
+      font-size: 1.1rem;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.4;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .compose, .results {
+      border: 1px solid var(--ink);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .compose {
+      padding: clamp(16px, 2.5vw, 28px);
+      display: grid;
+      gap: 18px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    .counter {
+      color: var(--muted);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .counter.over {
+      color: var(--red);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      background: #fffaf1;
+      color: var(--ink);
+      padding: 14px;
+      line-height: 1.65;
+      font-size: 1.08rem;
+      outline: none;
+    }
+
+    textarea:focus, select:focus, input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(39, 116, 90, .16);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      background: #fffaf1;
+      padding: 11px 12px;
+      color: var(--muted);
+    }
+
+    .switch-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--green);
+      flex: 0 0 auto;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      height: 44px;
+      border: 1px solid var(--line);
+      background: #fffaf1;
+      color: var(--ink);
+      padding: 0 10px;
+      outline: none;
+    }
+
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .example, .submit {
+      border: 1px solid var(--ink);
+      background: var(--panel);
+      color: var(--ink);
+      min-height: 42px;
+      padding: 0 13px;
+      cursor: pointer;
+      transition: transform .16s ease, background .16s ease;
+    }
+
+    .example:hover, .submit:hover {
+      transform: translateY(-1px);
+      background: #e5efe8;
+    }
+
+    .submit {
+      background: var(--ink);
+      color: var(--panel);
+      min-width: 140px;
+      font-weight: 800;
+    }
+
+    .submit[disabled] {
+      opacity: .56;
+      cursor: wait;
+      transform: none;
+    }
+
+    .results {
+      position: sticky;
+      top: 18px;
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .results h2 {
+      margin: 0;
+      font-size: 1.45rem;
+      line-height: 1.1;
+    }
+
+    audio {
+      width: 100%;
+      height: 42px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metric {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 2px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.85rem;
+      line-height: 1;
+    }
+
+    .history {
+      display: grid;
+      gap: 8px;
+      max-height: 300px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .history button {
+      text-align: left;
+      border: 1px solid var(--line);
+      background: #fffaf1;
+      color: var(--ink);
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .history button:hover {
+      border-color: var(--ink);
+    }
+
+    .playlist {
+      display: grid;
+      gap: 8px;
+    }
+
+    .playlist button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      background: #fffaf1;
+      color: var(--ink);
+      text-align: left;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+
+    .playlist button.active {
+      border-color: var(--green);
+      box-shadow: inset 4px 0 0 var(--green);
+    }
+
+    .path {
+      overflow-wrap: anywhere;
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.35;
+    }
+
+    .error {
+      color: var(--red);
+      font-weight: 800;
+    }
+
+    @media (max-width: 900px) {
+      header, main, .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .results {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <div class="muted">DGX Spark / VoxCPM2 / 中文輸入即時合成</div>
+        <h1>中文語音合成</h1>
+      </div>
+      <div class="status">
+        <strong id="statusText">連線檢查中</strong>
+        <span class="muted" id="statusMeta">192.168.0.110:8792</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="compose">
+        <label>
+          <span class="label-row">
+            <span>文字</span>
+            <span class="counter" id="charCounter">0 / 420</span>
+          </span>
+          <textarea id="text">歡迎使用 DGX Spark 上的 VoxCPM2 中文語音合成服務。這段語音會直接在 SPARK 上生成，並回傳到瀏覽器播放。</textarea>
+        </label>
+
+        <div class="controls">
+          <label>
+            <span>聲音風格</span>
+            <select id="voice">
+              <option value="自然的台灣華語口音，語氣親切，發音清楚">台灣腔自然</option>
+              <option value="">自然中文</option>
+              <option value="成熟穩重的台灣女性聲音，語速中等，語氣溫暖">台灣女聲</option>
+              <option value="沉穩清楚的台灣男性聲音，語速中等，適合旁白">台灣男聲</option>
+              <option value="台灣新聞主播風格，咬字清楚，節奏穩定">台灣新聞</option>
+              <option value="溫柔、年輕、語速稍慢的女聲">溫柔女聲</option>
+              <option value="沉穩、專業、新聞播報風格">新聞播報</option>
+              <option value="低沉、穩定、有紀錄片旁白感的男聲">紀錄片男聲</option>
+              <option value="活潑、親切、清楚的教學語氣">教學語氣</option>
+              <option value="custom">自訂描述</option>
+            </select>
+          </label>
+          <label>
+            <span>CFG</span>
+            <input id="cfg" type="number" value="2.0" min="0.5" max="5" step="0.1" />
+          </label>
+          <label>
+            <span>Steps</span>
+            <input id="steps" type="number" value="10" min="4" max="30" step="1" />
+          </label>
+        </div>
+
+        <label id="customVoiceWrap" style="display:none">
+          <span>自訂聲音描述</span>
+          <input id="customVoice" type="text" placeholder="例：自然的台灣華語口音，語氣像台北日常對話，避免中國普通話腔" />
+        </label>
+
+        <label class="switch-row">
+          <span>長文跨段固定聲線</span>
+          <input id="stableVoice" type="checkbox" checked />
+        </label>
+
+        <div class="action-row">
+          <div class="examples">
+            <button class="example" type="button" data-example="請用自然、清楚的語氣說明：今天我們在 DGX Spark 上測試中文語音合成，並觀察延遲、音質和穩定性。">測試句</button>
+            <button class="example" type="button" data-example="各位觀眾您好，歡迎收看今天的技術快報。VoxCPM2 已經在本機環境完成部署，現在開始進行中文合成測試。">新聞</button>
+            <button class="example" type="button" data-example="這是一段較長的中文旁白，用來檢查語音的節奏、停頓、情緒表現，以及長句生成時的穩定程度。">長句</button>
+          </div>
+          <button class="submit" id="submit" type="button">生成語音</button>
+        </div>
+        <div class="muted" id="hint">建議先用 100 字以內測試，第一次生成會包含模型載入時間。</div>
+      </section>
+
+      <aside class="results">
+        <div>
+          <span class="muted">最近一次</span>
+          <h2 id="resultTitle">尚未生成</h2>
+        </div>
+        <audio id="audio" controls></audio>
+        <div class="playlist" id="playlist"></div>
+        <div class="metric-grid">
+          <div class="metric"><span>RTF</span><strong id="rtf">-</strong></div>
+          <div class="metric"><span>耗時</span><strong id="elapsed">-</strong></div>
+          <div class="metric"><span>音長</span><strong id="duration">-</strong></div>
+          <div class="metric"><span>字數</span><strong id="chars">-</strong></div>
+        </div>
+        <div class="path" id="filePath"></div>
+        <div>
+          <span class="muted">歷史</span>
+          <div class="history" id="history"></div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const statusText = document.getElementById("statusText");
+    const statusMeta = document.getElementById("statusMeta");
+    const submit = document.getElementById("submit");
+    const text = document.getElementById("text");
+    const voice = document.getElementById("voice");
+    const customVoice = document.getElementById("customVoice");
+    const customVoiceWrap = document.getElementById("customVoiceWrap");
+    const stableVoice = document.getElementById("stableVoice");
+    const cfg = document.getElementById("cfg");
+    const steps = document.getElementById("steps");
+    const audio = document.getElementById("audio");
+    const playlist = document.getElementById("playlist");
+    const historyEl = document.getElementById("history");
+    const charCounter = document.getElementById("charCounter");
+    let maxTextChars = 420;
+    let history = JSON.parse(localStorage.getItem("voxcpm-zh-history") || "[]");
+
+    function fmt(n, digits = 2) {
+      return Number(n).toFixed(digits);
+    }
+
+    function renderResult(item) {
+      document.getElementById("resultTitle").textContent = item.title || "中文語音";
+      const segments = item.segments && item.segments.length ? item.segments : [item];
+      const hasMultipleSegments = segments.length > 1 || Number(item.segment_count || 0) > 1;
+      const combinedUrl = hasMultipleSegments ? (item.combined_url || "") : "";
+      const selectedUrl = combinedUrl || item.url || segments[0].url;
+      audio.src = selectedUrl;
+      document.getElementById("rtf").textContent = fmt(item.rtf, 2);
+      document.getElementById("elapsed").textContent = `${fmt(item.elapsed_sec, 1)}s`;
+      document.getElementById("duration").textContent = `${fmt(item.audio_sec, 1)}s`;
+      document.getElementById("chars").textContent = item.chars;
+      document.getElementById("filePath").textContent = hasMultipleSegments && combinedUrl
+        ? `${segments.length} 段音檔，預設播放完整合併版`
+        : hasMultipleSegments
+        ? `${segments.length} 段音檔，這筆舊紀錄沒有合併版，請重新生成`
+        : (item.file || item.url);
+      renderPlaylist(item, segments, selectedUrl);
+    }
+
+    function renderPlaylist(item, segments, selectedUrl) {
+      if (!segments || segments.length <= 1) {
+        playlist.innerHTML = "";
+        return;
+      }
+      const combinedUrl = item.combined_url || "";
+      playlist.innerHTML = `
+        ${combinedUrl ? `
+          <button type="button" data-url="${combinedUrl}" class="${selectedUrl === combinedUrl ? "active" : ""}">
+            完整合併版 · ${segments.length} 段
+          </button>
+        ` : ""}
+      ` + segments.map((segment, index) => `
+        <button type="button" data-url="${segment.url}" class="${selectedUrl === segment.url ? "active" : ""}">
+          第 ${segment.index || index + 1} 段 · ${segment.chars} 字 · RTF ${fmt(segment.rtf, 2)}
+        </button>
+      `).join("");
+      playlist.querySelectorAll("button").forEach(button => {
+        button.addEventListener("click", () => {
+          playlist.querySelectorAll("button").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+          audio.src = button.dataset.url;
+          audio.play().catch(() => {});
+        });
+      });
+    }
+
+    function renderHistory() {
+      historyEl.innerHTML = history.map((item, index) => `
+        <button type="button" data-index="${index}">
+          <strong>${item.title}</strong><br>
+          <span class="muted">RTF ${fmt(item.rtf, 2)} · ${fmt(item.audio_sec, 1)}s</span>
+        </button>
+      `).join("");
+      historyEl.querySelectorAll("button").forEach(button => {
+        button.addEventListener("click", () => renderResult(history[Number(button.dataset.index)]));
+      });
+    }
+
+    function updateCounter() {
+      const count = text.value.trim().length;
+      const voiceLength = voice.value === "custom" ? customVoice.value.trim().length : voice.value.length;
+      const chunkLimit = Math.max(40, maxTextChars - (voiceLength ? voiceLength + 2 : 0));
+      const estimatedParts = Math.max(1, Math.ceil(count / chunkLimit));
+      charCounter.textContent = `${count} / ${maxTextChars}`;
+      charCounter.classList.toggle("over", count > maxTextChars);
+      if (count > maxTextChars) {
+        document.getElementById("hint").textContent = `超過單段上限，會自動切成約 ${estimatedParts} 段生成。`;
+      } else {
+        document.getElementById("hint").textContent = "建議先用 100 字以內測試，第一次生成會包含模型載入時間。";
+      }
+    }
+
+    async function health() {
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        const data = await res.json();
+        maxTextChars = Number(data.max_text_chars || maxTextChars);
+        statusText.textContent = data.model_loaded ? "模型已載入" : "服務就緒";
+        statusMeta.textContent = `${data.model} · 最多 ${data.max_text_chars} 字`;
+        updateCounter();
+      } catch (error) {
+        statusText.textContent = "連線失敗";
+        statusMeta.textContent = String(error);
+      }
+    }
+
+    async function synthesize() {
+      const body = {
+        text: text.value.trim(),
+        voice: voice.value === "custom" ? customVoice.value.trim() : voice.value,
+        cfg_value: Number(cfg.value),
+        inference_timesteps: Number(steps.value),
+        stable_voice: stableVoice.checked
+      };
+      if (!body.text) {
+        document.getElementById("hint").innerHTML = '<span class="error">請先輸入中文文字。</span>';
+        return;
+      }
+      submit.disabled = true;
+      submit.textContent = "生成中";
+      document.getElementById("hint").textContent = "SPARK 正在生成語音...";
+      try {
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "tts_failed");
+        const title = body.text.slice(0, 24) || "中文語音";
+        const item = { ...data, title };
+        history.unshift(item);
+        history = history.slice(0, 20);
+        localStorage.setItem("voxcpm-zh-history", JSON.stringify(history));
+        renderResult(item);
+        renderHistory();
+        audio.play().catch(() => {});
+        document.getElementById("hint").textContent = "完成。";
+        await health();
+      } catch (error) {
+        document.getElementById("hint").innerHTML = `<span class="error">${String(error.message || error)}</span>`;
+      } finally {
+        submit.disabled = false;
+        submit.textContent = "生成語音";
+      }
+    }
+
+    document.querySelectorAll("[data-example]").forEach(button => {
+      button.addEventListener("click", () => {
+        text.value = button.dataset.example;
+        updateCounter();
+        text.focus();
+      });
+    });
+
+    submit.addEventListener("click", synthesize);
+    voice.addEventListener("change", () => {
+      customVoiceWrap.style.display = voice.value === "custom" ? "grid" : "none";
+      if (voice.value === "custom") customVoice.focus();
+      updateCounter();
+    });
+    text.addEventListener("input", updateCounter);
+    customVoice.addEventListener("input", updateCounter);
+    renderHistory();
+    if (history[0]) renderResult(history[0]);
+    updateCounter();
+    health();
+  </script>
+</body>
+</html>

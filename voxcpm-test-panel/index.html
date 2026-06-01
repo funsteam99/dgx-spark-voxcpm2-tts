@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VoxCPM2 Test Panel</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2421;
+      --muted: #66716c;
+      --paper: #f7f4ec;
+      --surface: #fffdf7;
+      --line: #ded8c9;
+      --green: #2f7d5a;
+      --green-2: #dcece3;
+      --coral: #d5624a;
+      --amber: #c28a22;
+      --blue: #486f9f;
+      --shadow: 0 18px 55px rgba(42, 45, 38, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, rgba(47, 125, 90, .08) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(47, 125, 90, .07) 1px, transparent 1px),
+        var(--paper);
+      background-size: 36px 36px;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    .shell {
+      width: min(1380px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 42px;
+    }
+
+    header {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 28px;
+      align-items: end;
+      min-height: 132px;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(2.1rem, 4.8vw, 5.9rem);
+      line-height: .88;
+      letter-spacing: 0;
+      max-width: 820px;
+    }
+
+    .header-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .stat {
+      min-height: 86px;
+      border: 1px solid var(--ink);
+      background: var(--surface);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .stat strong {
+      font-size: clamp(1.45rem, 2.6vw, 2.4rem);
+      line-height: 1;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    .stat span,
+    .eyebrow {
+      color: var(--muted);
+      font-size: .82rem;
+      line-height: 1.2;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 292px 1fr;
+      gap: 22px;
+      padding-top: 24px;
+    }
+
+    aside {
+      position: sticky;
+      top: 18px;
+      align-self: start;
+      display: grid;
+      gap: 14px;
+    }
+
+    .group-button {
+      width: 100%;
+      border: 1px solid var(--ink);
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 76px;
+      text-align: left;
+      padding: 13px 14px;
+      display: grid;
+      gap: 8px;
+      cursor: pointer;
+      transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
+    }
+
+    .group-button:hover {
+      transform: translateX(4px);
+      box-shadow: var(--shadow);
+    }
+
+    .group-button[aria-pressed="true"] {
+      background: var(--green-2);
+      box-shadow: inset 6px 0 0 var(--green);
+    }
+
+    .group-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+    }
+
+    .group-name {
+      font-weight: 800;
+      font-size: 1rem;
+    }
+
+    .group-score {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .tools {
+      border: 1px solid var(--line);
+      background: rgba(255, 253, 247, .72);
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .search {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 12px;
+      outline: none;
+    }
+
+    .search:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(47, 125, 90, .16);
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .toggle-row input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--green);
+    }
+
+    .content {
+      min-width: 0;
+      display: grid;
+      gap: 18px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: 1.2fr repeat(4, minmax(116px, .5fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .summary-title {
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--surface);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 132px;
+    }
+
+    .summary-title h2 {
+      margin: 0;
+      font-size: clamp(1.35rem, 2vw, 2.1rem);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .summary-card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      padding: 16px;
+      min-height: 132px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .summary-card strong {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(1.65rem, 3vw, 3.1rem);
+      line-height: .95;
+    }
+
+    .tester {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .case-row {
+      border: 1px solid var(--line);
+      background: rgba(255, 253, 247, .86);
+      display: grid;
+      grid-template-columns: 1fr 150px;
+      gap: 16px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color .16s ease, transform .16s ease, background .16s ease;
+    }
+
+    .case-row:hover {
+      border-color: var(--ink);
+      transform: translateY(-1px);
+    }
+
+    .case-row.active {
+      background: var(--surface);
+      border-color: var(--green);
+      box-shadow: inset 5px 0 0 var(--green);
+    }
+
+    .case-main {
+      min-width: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .case-id {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      font-weight: 850;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      background: #efe6d4;
+      color: #5f5138;
+      font-size: .74rem;
+      font-weight: 800;
+    }
+
+    .case-text {
+      margin: 0;
+      color: #3c4641;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .meter {
+      height: 8px;
+      background: #ece5d7;
+      overflow: hidden;
+    }
+
+    .meter span {
+      display: block;
+      height: 100%;
+      width: var(--w);
+      background: var(--bar);
+    }
+
+    .case-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      align-content: start;
+    }
+
+    .mini {
+      border-left: 1px solid var(--line);
+      padding-left: 10px;
+    }
+
+    .mini span {
+      display: block;
+      color: var(--muted);
+      font-size: .74rem;
+    }
+
+    .mini strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 1rem;
+    }
+
+    .player {
+      position: sticky;
+      top: 18px;
+      border: 1px solid var(--ink);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .player h3 {
+      margin: 0;
+      font-size: clamp(1.25rem, 2vw, 1.8rem);
+      line-height: 1.08;
+      overflow-wrap: anywhere;
+    }
+
+    audio {
+      width: 100%;
+      height: 42px;
+    }
+
+    .player-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .big-metric {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+    }
+
+    .big-metric span {
+      display: block;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .big-metric strong {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 2rem;
+      line-height: 1;
+    }
+
+    .path {
+      color: var(--muted);
+      font-size: .78rem;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .quality {
+      display: grid;
+      gap: 10px;
+    }
+
+    .quality label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--coral);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 112px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      background: #fffaf0;
+      color: var(--ink);
+      padding: 10px;
+      font: inherit;
+      line-height: 1.4;
+    }
+
+    .note-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .icon-button {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--ink);
+      background: var(--surface);
+      color: var(--ink);
+      cursor: pointer;
+      display: inline-grid;
+      place-items: center;
+      font-size: 1.05rem;
+      transition: transform .16s ease, background .16s ease;
+    }
+
+    .icon-button:hover {
+      transform: translateY(-1px);
+      background: var(--green-2);
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      padding: 24px;
+      color: var(--muted);
+      background: rgba(255, 253, 247, .7);
+    }
+
+    @media (max-width: 1040px) {
+      header,
+      main,
+      .tester {
+        grid-template-columns: 1fr;
+      }
+
+      aside,
+      .player {
+        position: static;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .summary-title {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        width: min(100vw - 20px, 1380px);
+        padding-top: 14px;
+      }
+
+      .header-meta,
+      .summary,
+      .case-row {
+        grid-template-columns: 1fr;
+      }
+
+      .case-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .mini {
+        border-left: 0;
+        padding-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">DGX Spark / VoxCPM2 / local run</div>
+        <h1>Voice Bench Console</h1>
+      </div>
+      <div class="header-meta" id="globalStats"></div>
+    </header>
+
+    <main>
+      <aside>
+        <div id="groupButtons"></div>
+        <div class="tools">
+          <input class="search" id="search" type="search" placeholder="搜尋 id 或文字" />
+          <label class="toggle-row">
+            <span>只看 UTF-8 有效結果</span>
+            <input id="validOnly" type="checkbox" checked />
+          </label>
+        </div>
+      </aside>
+
+      <section class="content">
+        <div class="summary" id="summary"></div>
+        <div class="tester">
+          <div class="list" id="caseList"></div>
+          <section class="player" id="player"></section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const base = location.hostname === "192.168.0.110" ? "../runs" : "../dgx-voxcpm-eval-runs-latest";
+    const groups = [
+      {
+        id: "baseline-local-utf8",
+        label: "Baseline UTF-8",
+        kind: "clean",
+        summary: { cases: 7, successes: 7, failures: 0, load_seconds: 10.0916, rtf_mean: 1.1576, rtf_median: 1.0637, rtf_min: 1.0579, rtf_max: 1.3268 },
+        rows: [
+          { id: "zh_short_01", text: "你好，這是一段在 DGX Spark 上執行的中文語音合成測試。", chars: 32, elapsed: 7.6426, audio: 5.76, rtf: 1.3268, wav: "baseline-local-utf8/audio/zh_short_01_r1.wav" },
+          { id: "zh_short_02", text: "請用自然清楚的語氣，說明本機推論已經開始運作。", chars: 23, elapsed: 4.4147, audio: 4.16, rtf: 1.0612, wav: "baseline-local-utf8/audio/zh_short_02_r1.wav" },
+          { id: "en_short_01", text: "This is a short English speech synthesis test running on DGX Spark.", chars: 67, elapsed: 4.0624, audio: 3.84, rtf: 1.0579, wav: "baseline-local-utf8/audio/en_short_01_r1.wav" },
+          { id: "en_short_02", text: "VoxCPM2 should generate clear, natural, and expressive speech.", chars: 62, elapsed: 4.5767, audio: 4.32, rtf: 1.0594, wav: "baseline-local-utf8/audio/en_short_02_r1.wav" },
+          { id: "mixed_01", text: "這是一段混合語言測試，VoxCPM2 is generating speech locally.", chars: 48, elapsed: 6.1271, audio: 5.76, rtf: 1.0637, wav: "baseline-local-utf8/audio/mixed_01_r1.wav" },
+          { id: "numbers_01", text: "請朗讀數字測試：二零二六年六月一日，版本是 2.0，延遲約三百毫秒。", chars: 34, elapsed: 10.9368, audio: 8.64, rtf: 1.2658, wav: "baseline-local-utf8/audio/numbers_01_r1.wav" },
+          { id: "long_01", text: "在這段較長的測試中，我們會觀察語音的穩定度、斷句、節奏，以及中英文切換時的自然程度，並記錄每個案例的生成時間與音訊長度。", chars: 60, elapsed: 15.0203, audio: 11.84, rtf: 1.2686, wav: "baseline-local-utf8/audio/long_01_r1.wav" }
+        ]
+      },
+      {
+        id: "baseline-opt-utf8",
+        label: "Baseline Opt",
+        kind: "clean",
+        summary: { cases: 7, successes: 7, failures: 0, load_seconds: 88.4374, rtf_mean: 1.5146, rtf_median: 1.5117, rtf_min: 1.5015, rtf_max: 1.5321 },
+        rows: [
+          { id: "zh_short_01", text: "你好，這是一段在 DGX Spark 上執行的中文語音合成測試。", chars: 32, elapsed: 8.2029, audio: 5.44, rtf: 1.5079, wav: "baseline-opt-utf8/audio/zh_short_01_r1.wav" },
+          { id: "zh_short_02", text: "請用自然清楚的語氣，說明本機推論已經開始運作。", chars: 23, elapsed: 8.7303, audio: 5.76, rtf: 1.5157, wav: "baseline-opt-utf8/audio/zh_short_02_r1.wav" },
+          { id: "en_short_01", text: "This is a short English speech synthesis test running on DGX Spark.", chars: 67, elapsed: 5.7657, audio: 3.84, rtf: 1.5015, wav: "baseline-opt-utf8/audio/en_short_01_r1.wav" },
+          { id: "en_short_02", text: "VoxCPM2 should generate clear, natural, and expressive speech.", chars: 62, elapsed: 8.4654, audio: 5.6, rtf: 1.5117, wav: "baseline-opt-utf8/audio/en_short_02_r1.wav" },
+          { id: "mixed_01", text: "這是一段混合語言測試，VoxCPM2 is generating speech locally.", chars: 48, elapsed: 8.7059, audio: 5.76, rtf: 1.5114, wav: "baseline-opt-utf8/audio/mixed_01_r1.wav" },
+          { id: "numbers_01", text: "請朗讀數字測試：二零二六年六月一日，版本是 2.0，延遲約三百毫秒。", chars: 34, elapsed: 10.7147, audio: 7.04, rtf: 1.522, wav: "baseline-opt-utf8/audio/numbers_01_r1.wav" },
+          { id: "long_01", text: "在這段較長的測試中，我們會觀察語音的穩定度、斷句、節奏，以及中英文切換時的自然程度，並記錄每個案例的生成時間與音訊長度。", chars: 60, elapsed: 17.6493, audio: 11.52, rtf: 1.5321, wav: "baseline-opt-utf8/audio/long_01_r1.wav" }
+        ]
+      },
+      {
+        id: "voice-design-local-utf8",
+        label: "Voice Design",
+        kind: "clean",
+        summary: { cases: 4, successes: 4, failures: 0, load_seconds: 17.6443, rtf_mean: 1.3171, rtf_median: 1.2582, rtf_min: 1.2483, rtf_max: 1.5034 },
+        rows: [
+          { id: "design_zh_gentle", text: "(溫柔、年輕、語速稍慢的女聲)歡迎使用本機語音生成測試，請保持清晰而放鬆的語氣。", chars: 40, elapsed: 11.0647, audio: 7.36, rtf: 1.5034, wav: "voice-design-local-utf8/audio/design_zh_gentle_r1.wav" },
+          { id: "design_zh_news", text: "(沉穩、專業、新聞播報風格)現在為您報告，DGX Spark 本機語音合成測試正在進行。", chars: 44, elapsed: 5.2508, audio: 4.16, rtf: 1.2622, wav: "voice-design-local-utf8/audio/design_zh_news_r1.wav" },
+          { id: "design_en_warm", text: "(A warm young woman with a calm, friendly voice)Welcome to the local voice generation benchmark.", chars: 96, elapsed: 2.9959, audio: 2.4, rtf: 1.2483, wav: "voice-design-local-utf8/audio/design_en_warm_r1.wav" },
+          { id: "design_en_documentary", text: "(A deep documentary narrator voice, steady and expressive)The system is measuring latency and audio quality.", chars: 108, elapsed: 4.0138, audio: 3.2, rtf: 1.2543, wav: "voice-design-local-utf8/audio/design_en_documentary_r1.wav" }
+        ]
+      },
+      {
+        id: "voice-design-opt-utf8",
+        label: "Voice Opt",
+        kind: "clean",
+        summary: { cases: 4, successes: 4, failures: 0, load_seconds: 22.2268, rtf_mean: 1.5176, rtf_median: 1.5177, rtf_min: 1.5028, rtf_max: 1.5321 },
+        rows: [
+          { id: "design_zh_gentle", text: "(溫柔、年輕、語速稍慢的女聲)歡迎使用本機語音生成測試，請保持清晰而放鬆的語氣。", chars: 40, elapsed: 8.3348, audio: 5.44, rtf: 1.5321, wav: "voice-design-opt-utf8/audio/design_zh_gentle_r1.wav" },
+          { id: "design_zh_news", text: "(沉穩、專業、新聞播報風格)現在為您報告，DGX Spark 本機語音合成測試正在進行。", chars: 44, elapsed: 6.5845, audio: 4.32, rtf: 1.5242, wav: "voice-design-opt-utf8/audio/design_zh_news_r1.wav" },
+          { id: "design_en_warm", text: "(A warm young woman with a calm, friendly voice)Welcome to the local voice generation benchmark.", chars: 96, elapsed: 4.3282, audio: 2.88, rtf: 1.5028, wav: "voice-design-opt-utf8/audio/design_en_warm_r1.wav" },
+          { id: "design_en_documentary", text: "(A deep documentary narrator voice, steady and expressive)The system is measuring latency and audio quality.", chars: 108, elapsed: 5.0777, audio: 3.36, rtf: 1.5112, wav: "voice-design-opt-utf8/audio/design_en_documentary_r1.wav" }
+        ]
+      },
+      {
+        id: "clone-selfref-utf8",
+        label: "Clone Self-ref",
+        kind: "clean",
+        summary: { cases: 4, successes: 4, failures: 0, load_seconds: 10.4947, rtf_mean: 1.6654, rtf_median: 1.2732, rtf_min: 1.2715, rtf_max: 2.8435 },
+        rows: [
+          { id: "clone_zh_01", text: "這是一段中文聲音複製測試，用來檢查說話者相似度與發音品質。", chars: 29, elapsed: 18.1983, audio: 6.4, rtf: 2.8435, wav: "clone-selfref-utf8/audio/clone_zh_01_r1.wav" },
+          { id: "clone_zh_02", text: "請維持參考音色的特徵，同時讓句子聽起來自然、清楚、穩定。", chars: 28, elapsed: 7.5339, audio: 5.92, rtf: 1.2726, wav: "clone-selfref-utf8/audio/clone_zh_02_r1.wav" },
+          { id: "clone_en_01", text: "This is a voice cloning test for speaker similarity and pronunciation quality.", chars: 78, elapsed: 6.3065, audio: 4.96, rtf: 1.2715, wav: "clone-selfref-utf8/audio/clone_en_01_r1.wav" },
+          { id: "clone_mixed_01", text: "這是一段 mixed language cloning test，用來觀察中英文切換是否自然。", chars: 47, elapsed: 7.5409, audio: 5.92, rtf: 1.2738, wav: "clone-selfref-utf8/audio/clone_mixed_01_r1.wav" }
+        ]
+      },
+      {
+        id: "clone-selfref-opt-utf8",
+        label: "Clone Opt",
+        kind: "clean",
+        summary: { cases: 4, successes: 4, failures: 0, load_seconds: 30.5753, rtf_mean: 1.6086, rtf_median: 1.5303, rtf_min: 1.5298, rtf_max: 1.8441 },
+        rows: [
+          { id: "clone_zh_01", text: "這是一段中文聲音複製測試，用來檢查說話者相似度與發音品質。", chars: 29, elapsed: 10.9169, audio: 5.92, rtf: 1.8441, wav: "clone-selfref-opt-utf8/audio/clone_zh_01_r1.wav" },
+          { id: "clone_zh_02", text: "請維持參考音色的特徵，同時讓句子聽起來自然、清楚、穩定。", chars: 28, elapsed: 9.3034, audio: 6.08, rtf: 1.5302, wav: "clone-selfref-opt-utf8/audio/clone_zh_02_r1.wav" },
+          { id: "clone_en_01", text: "This is a voice cloning test for speaker similarity and pronunciation quality.", chars: 78, elapsed: 7.836, audio: 5.12, rtf: 1.5305, wav: "clone-selfref-opt-utf8/audio/clone_en_01_r1.wav" },
+          { id: "clone_mixed_01", text: "這是一段 mixed language cloning test，用來觀察中英文切換是否自然。", chars: 47, elapsed: 8.8118, audio: 5.76, rtf: 1.5298, wav: "clone-selfref-opt-utf8/audio/clone_mixed_01_r1.wav" }
+        ]
+      },
+      {
+        id: "baseline-local",
+        label: "Old Baseline",
+        kind: "legacy",
+        summary: { cases: 7, successes: 7, failures: 0, load_seconds: 9.9309, rtf_mean: 1.154, rtf_median: 1.0733, rtf_min: 1.0657, rtf_max: 1.4489 },
+        rows: []
+      }
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    let state = {
+      groupId: "baseline-local-utf8",
+      activeId: "zh_short_01",
+      query: "",
+      validOnly: true,
+      ratings: JSON.parse(localStorage.getItem("voxcpm-ratings") || "{}"),
+      notes: JSON.parse(localStorage.getItem("voxcpm-notes") || "{}")
+    };
+
+    function fmt(n, digits = 2) {
+      return Number(n).toFixed(digits);
+    }
+
+    function visibleGroups() {
+      return groups.filter(g => !state.validOnly || g.kind === "clean");
+    }
+
+    function activeGroup() {
+      return visibleGroups().find(g => g.id === state.groupId) || visibleGroups()[0];
+    }
+
+    function filteredRows(group) {
+      const q = state.query.trim().toLowerCase();
+      if (!q) return group.rows;
+      return group.rows.filter(row => `${row.id} ${row.text}`.toLowerCase().includes(q));
+    }
+
+    function scoreColor(rtf) {
+      if (rtf <= 1.1) return "var(--green)";
+      if (rtf <= 1.35) return "var(--amber)";
+      return "var(--coral)";
+    }
+
+    function saveMemory() {
+      localStorage.setItem("voxcpm-ratings", JSON.stringify(state.ratings));
+      localStorage.setItem("voxcpm-notes", JSON.stringify(state.notes));
+    }
+
+    function renderGlobalStats() {
+      const clean = groups.filter(g => g.kind === "clean");
+      const cases = clean.reduce((sum, g) => sum + g.summary.cases, 0);
+      const best = Math.min(...clean.map(g => g.summary.rtf_min));
+      const med = clean.reduce((sum, g) => sum + g.summary.rtf_median, 0) / clean.length;
+      $("globalStats").innerHTML = `
+        <div class="stat"><span>有效案例</span><strong>${cases}</strong></div>
+        <div class="stat"><span>最佳 RTF</span><strong>${fmt(best, 2)}</strong></div>
+        <div class="stat"><span>中位 RTF</span><strong>${fmt(med, 2)}</strong></div>
+      `;
+    }
+
+    function renderGroups() {
+      $("groupButtons").innerHTML = visibleGroups().map(group => `
+        <button class="group-button" type="button" aria-pressed="${group.id === state.groupId}" data-group="${group.id}">
+          <span class="group-top">
+            <span class="group-name">${group.label}</span>
+            <span class="group-score">${fmt(group.summary.rtf_median, 2)}</span>
+          </span>
+          <span class="eyebrow">${group.summary.successes}/${group.summary.cases} ok · load ${fmt(group.summary.load_seconds, 1)}s</span>
+        </button>
+      `).join("");
+
+      document.querySelectorAll("[data-group]").forEach(button => {
+        button.addEventListener("click", () => {
+          state.groupId = button.dataset.group;
+          const group = activeGroup();
+          state.activeId = group.rows[0]?.id || "";
+          render();
+        });
+      });
+    }
+
+    function renderSummary(group) {
+      $("summary").innerHTML = `
+        <div class="summary-title">
+          <h2>${group.label}</h2>
+          <span>${group.kind === "clean" ? "UTF-8 clean prompt set" : "Legacy prompt set"}</span>
+        </div>
+        <div class="summary-card"><span class="eyebrow">成功</span><strong>${group.summary.successes}/${group.summary.cases}</strong></div>
+        <div class="summary-card"><span class="eyebrow">平均 RTF</span><strong>${fmt(group.summary.rtf_mean, 2)}</strong></div>
+        <div class="summary-card"><span class="eyebrow">中位 RTF</span><strong>${fmt(group.summary.rtf_median, 2)}</strong></div>
+        <div class="summary-card"><span class="eyebrow">範圍</span><strong>${fmt(group.summary.rtf_min, 2)}-${fmt(group.summary.rtf_max, 2)}</strong></div>
+      `;
+    }
+
+    function renderList(group) {
+      const rows = filteredRows(group);
+      if (!rows.length) {
+        $("caseList").innerHTML = `<div class="empty">目前沒有符合條件的案例。</div>`;
+        return;
+      }
+
+      if (!rows.some(row => row.id === state.activeId)) {
+        state.activeId = rows[0].id;
+      }
+
+      const maxRtf = Math.max(...rows.map(row => row.rtf));
+      $("caseList").innerHTML = rows.map(row => {
+        const width = Math.max(8, Math.round((row.rtf / maxRtf) * 100));
+        const rating = state.ratings[`${group.id}:${row.id}`] || "-";
+        return `
+          <article class="case-row ${row.id === state.activeId ? "active" : ""}" data-case="${row.id}">
+            <div class="case-main">
+              <div class="case-id">
+                <span>${row.id}</span>
+                <span class="badge">score ${rating}</span>
+              </div>
+              <p class="case-text">${row.text}</p>
+              <div class="meter" title="RTF"><span style="--w:${width}%; --bar:${scoreColor(row.rtf)}"></span></div>
+            </div>
+            <div class="case-metrics">
+              <div class="mini"><span>RTF</span><strong>${fmt(row.rtf, 2)}</strong></div>
+              <div class="mini"><span>耗時</span><strong>${fmt(row.elapsed, 1)}s</strong></div>
+              <div class="mini"><span>音長</span><strong>${fmt(row.audio, 1)}s</strong></div>
+              <div class="mini"><span>字數</span><strong>${row.chars}</strong></div>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      document.querySelectorAll("[data-case]").forEach(row => {
+        row.addEventListener("click", () => {
+          state.activeId = row.dataset.case;
+          render();
+        });
+      });
+    }
+
+    function renderPlayer(group) {
+      const row = group.rows.find(item => item.id === state.activeId);
+      if (!row) {
+        $("player").innerHTML = `<div class="empty">選一組有效案例開始聽測。</div>`;
+        return;
+      }
+
+      const key = `${group.id}:${row.id}`;
+      const rating = state.ratings[key] || 3;
+      const note = state.notes[key] || "";
+      $("player").innerHTML = `
+        <div>
+          <span class="eyebrow">${group.label}</span>
+          <h3>${row.id}</h3>
+        </div>
+        <audio controls src="${base}/${row.wav}"></audio>
+        <p class="case-text">${row.text}</p>
+        <div class="player-grid">
+          <div class="big-metric"><span>RTF</span><strong style="color:${scoreColor(row.rtf)}">${fmt(row.rtf, 2)}</strong></div>
+          <div class="big-metric"><span>耗時</span><strong>${fmt(row.elapsed, 1)}s</strong></div>
+          <div class="big-metric"><span>音長</span><strong>${fmt(row.audio, 1)}s</strong></div>
+          <div class="big-metric"><span>字數</span><strong>${row.chars}</strong></div>
+        </div>
+        <div class="quality">
+          <label>
+            <span>主觀分數：<strong id="ratingValue">${rating}</strong>/5</span>
+            <input id="rating" type="range" min="1" max="5" step="1" value="${rating}" />
+          </label>
+          <textarea id="note" placeholder="聽感筆記">${note}</textarea>
+          <div class="note-actions">
+            <button class="icon-button" type="button" id="copyPath" title="複製音檔路徑">⧉</button>
+            <button class="icon-button" type="button" id="clearNote" title="清除筆記">×</button>
+          </div>
+        </div>
+        <div class="path">${base}/${row.wav}</div>
+      `;
+
+      $("rating").addEventListener("input", event => {
+        state.ratings[key] = event.target.value;
+        $("ratingValue").textContent = event.target.value;
+        saveMemory();
+        renderList(group);
+      });
+
+      $("note").addEventListener("input", event => {
+        state.notes[key] = event.target.value;
+        saveMemory();
+      });
+
+      $("clearNote").addEventListener("click", () => {
+        state.notes[key] = "";
+        $("note").value = "";
+        saveMemory();
+      });
+
+      $("copyPath").addEventListener("click", async () => {
+        const value = `${base}/${row.wav}`;
+        try {
+          await navigator.clipboard.writeText(value);
+        } catch {
+          window.prompt("音檔路徑", value);
+        }
+      });
+    }
+
+    function render() {
+      const group = activeGroup();
+      state.groupId = group.id;
+      renderGlobalStats();
+      renderGroups();
+      renderSummary(group);
+      renderList(group);
+      renderPlayer(group);
+    }
+
+    $("search").addEventListener("input", event => {
+      state.query = event.target.value;
+      render();
+    });
+
+    $("validOnly").addEventListener("change", event => {
+      state.validOnly = event.target.checked;
+      if (!visibleGroups().some(g => g.id === state.groupId)) {
+        state.groupId = "baseline-local-utf8";
+        state.activeId = "zh_short_01";
+      }
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
