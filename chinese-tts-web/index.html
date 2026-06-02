@@ -165,7 +165,7 @@
       flex: 0 0 auto;
     }
 
-    select, input[type="number"], input[type="text"] {
+    select, input[type="number"], input[type="text"], input[type="file"] {
       width: 100%;
       height: 44px;
       border: 1px solid var(--line);
@@ -384,6 +384,17 @@
           <input id="stableVoice" type="checkbox" checked />
         </label>
 
+        <div class="controls">
+          <label>
+            <span>語音樣本</span>
+            <input id="voiceSample" type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp3,audio/flac,audio/mp4,audio/ogg,.wav,.mp3,.flac,.m4a,.ogg" />
+          </label>
+          <label style="grid-column: span 2">
+            <span>樣本文字（可選）</span>
+            <input id="samplePromptText" type="text" placeholder="若知道樣本音檔說了什麼，填入可提高模仿穩定度" />
+          </label>
+        </div>
+
         <div class="action-row">
           <div class="examples">
             <button class="example" type="button" data-example="請用自然、清楚的語氣說明：今天我們在 DGX Spark 上測試中文語音合成，並觀察延遲、音質和穩定性。">測試句</button>
@@ -426,6 +437,8 @@
     const customVoice = document.getElementById("customVoice");
     const customVoiceWrap = document.getElementById("customVoiceWrap");
     const stableVoice = document.getElementById("stableVoice");
+    const voiceSample = document.getElementById("voiceSample");
+    const samplePromptText = document.getElementById("samplePromptText");
     const cfg = document.getElementById("cfg");
     const steps = document.getElementById("steps");
     const audio = document.getElementById("audio");
@@ -529,6 +542,7 @@
       const body = {
         text: text.value.trim(),
         voice: voice.value === "custom" ? customVoice.value.trim() : voice.value,
+        prompt_text: samplePromptText.value.trim(),
         cfg_value: Number(cfg.value),
         inference_timesteps: Number(steps.value),
         stable_voice: stableVoice.checked
@@ -541,11 +555,19 @@
       submit.textContent = "生成中";
       document.getElementById("hint").textContent = "SPARK 正在生成語音...";
       try {
-        const res = await fetch("/api/tts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
+        const sampleFile = voiceSample.files && voiceSample.files[0];
+        const request = { method: "POST" };
+        if (sampleFile) {
+          const form = new FormData();
+          Object.entries(body).forEach(([key, value]) => form.append(key, String(value)));
+          form.append("voice_sample", sampleFile);
+          request.body = form;
+          document.getElementById("hint").textContent = "SPARK 正在用語音樣本模仿生成...";
+        } else {
+          request.headers = { "Content-Type": "application/json" };
+          request.body = JSON.stringify(body);
+        }
+        const res = await fetch("/api/tts", request);
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || "tts_failed");
         const title = body.text.slice(0, 24) || "中文語音";

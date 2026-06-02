@@ -6,6 +6,7 @@ import os
 import re
 import time
 import traceback
+import cgi
 from dataclasses import dataclass
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -19,10 +20,12 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent
 WEB_DIR = ROOT / "chinese-tts-web"
 OUTPUT_DIR = ROOT / "runs" / "chinese-tts-live"
+UPLOAD_DIR = ROOT / "runs" / "chinese-tts-uploads"
 MODEL_PATH = os.environ.get("VOXCPM_MODEL", "pretrained_models/VoxCPM2")
 HOST = os.environ.get("VOXCPM_HOST", "0.0.0.0")
 PORT = int(os.environ.get("VOXCPM_PORT", "8792"))
 MAX_TEXT_CHARS = int(os.environ.get("VOXCPM_MAX_TEXT_CHARS", "420"))
+MAX_UPLOAD_BYTES = int(os.environ.get("VOXCPM_MAX_UPLOAD_BYTES", str(60 * 1024 * 1024)))
 
 model = None
 
@@ -112,6 +115,84 @@ def concatenate_wavs(wavs: list[np.ndarray], sample_rate: int, gap_seconds: floa
     return np.concatenate(pieces)
 
 
+def form_value(form: cgi.FieldStorage, name: str, default: str = "") -> str:
+    if name not in form:
+        return default
+    item = form[name]
+    if isinstance(item, list):
+        item = item[0]
+    value = item.value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
+def bool_value(value: object, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def save_uploaded_sample(form: cgi.FieldStorage, stamp: str) -> Path | None:
+    if "voice_sample" not in form:
+        return None
+    item = form["voice_sample"]
+    if isinstance(item, list):
+        item = item[0]
+    if not getattr(item, "filename", ""):
+        return None
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    original_name = Path(str(item.filename)).name
+    suffix = Path(original_name).suffix.lower()
+    if suffix not in {".wav", ".mp3", ".flac", ".m4a", ".ogg"}:
+        suffix = ".wav"
+    out_path = UPLOAD_DIR / f"{stamp}-sample-{clean_name(Path(original_name).stem)}{suffix}"
+
+    written = 0
+    with out_path.open("wb") as out:
+        while True:
+            block = item.file.read(1024 * 1024)
+            if not block:
+                break
+            written += len(block)
+            if written > MAX_UPLOAD_BYTES:
+                out.close()
+                out_path.unlink(missing_ok=True)
+                raise ValueError(f"voice_sample_too_large>{MAX_UPLOAD_BYTES}")
+            out.write(block)
+    return out_path
+
+
+def read_tts_request(handler: SimpleHTTPRequestHandler, stamp: str) -> tuple[dict, Path | None]:
+    content_type = handler.headers.get("Content-Type", "")
+    if content_type.startswith("multipart/form-data"):
+        form = cgi.FieldStorage(
+            fp=handler.rfile,
+            headers=handler.headers,
+            environ={
+                "REQUEST_METHOD": "POST",
+                "CONTENT_TYPE": content_type,
+                "CONTENT_LENGTH": handler.headers.get("Content-Length", "0"),
+            },
+        )
+        payload = {
+            "text": form_value(form, "text"),
+            "voice": form_value(form, "voice"),
+            "prompt_text": form_value(form, "prompt_text"),
+            "cfg_value": form_value(form, "cfg_value", "2.0"),
+            "inference_timesteps": form_value(form, "inference_timesteps", "10"),
+            "stable_voice": bool_value(form_value(form, "stable_voice", "true"), True),
+        }
+        return payload, save_uploaded_sample(form, stamp)
+
+    length = int(handler.headers.get("Content-Length", "0"))
+    raw = handler.rfile.read(length)
+    return json.loads(raw.decode("utf-8")), None
+
+
 class Handler(SimpleHTTPRequestHandler):
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store, max-age=0")
@@ -147,14 +228,14 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            raw = self.rfile.read(length)
-            payload = json.loads(raw.decode("utf-8"))
+            stamp = time.strftime("%Y%m%d-%H%M%S")
+            payload, uploaded_prompt_wav = read_tts_request(self, stamp)
             text = str(payload.get("text", "")).strip()
             voice = str(payload.get("voice", "")).strip()
+            prompt_text = str(payload.get("prompt_text", "")).strip()
             cfg_value = float(payload.get("cfg_value", 2.0))
             inference_timesteps = int(payload.get("inference_timesteps", 10))
-            stable_voice = bool(payload.get("stable_voice", True))
+            stable_voice = bool_value(payload.get("stable_voice", True), True)
 
             if not text:
                 json_response(self, {"ok": False, "error": "empty_text"}, HTTPStatus.BAD_REQUEST)
@@ -167,7 +248,6 @@ class Handler(SimpleHTTPRequestHandler):
             OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
             tts = load_model()
             sample_rate = int(tts.tts_model.sample_rate)
-            stamp = time.strftime("%Y%m%d-%H%M%S")
             total_started = time.perf_counter()
             segments: list[dict] = []
             segment_wavs: list[np.ndarray] = []
@@ -175,13 +255,16 @@ class Handler(SimpleHTTPRequestHandler):
             anchor_prompt_text = ""
 
             for chunk in chunks:
+                use_uploaded_prompt = uploaded_prompt_wav is not None
                 use_anchor = stable_voice and anchor_wav_path is not None
-                model_text = chunk.text if use_anchor else f"{voice_prefix}{chunk.text}"
+                prompt_wav_path = uploaded_prompt_wav if use_uploaded_prompt else anchor_wav_path
+                active_prompt_text = prompt_text if use_uploaded_prompt else anchor_prompt_text
+                model_text = chunk.text if use_uploaded_prompt or use_anchor else f"{voice_prefix}{chunk.text}"
                 started = time.perf_counter()
                 wav = tts.generate(
                     text=model_text,
-                    prompt_wav_path=str(anchor_wav_path) if use_anchor else None,
-                    prompt_text=anchor_prompt_text if use_anchor else None,
+                    prompt_wav_path=str(prompt_wav_path) if prompt_wav_path else None,
+                    prompt_text=active_prompt_text or None,
                     cfg_value=cfg_value,
                     inference_timesteps=inference_timesteps,
                     denoise=False,
@@ -238,6 +321,9 @@ class Handler(SimpleHTTPRequestHandler):
                     "segment_count": len(segments),
                     "chunk_limit": chunk_limit,
                     "stable_voice": stable_voice,
+                    "uploaded_prompt": bool(uploaded_prompt_wav),
+                    "uploaded_prompt_file": str(uploaded_prompt_wav) if uploaded_prompt_wav else "",
+                    "has_prompt_text": bool(prompt_text),
                     "anchor_file": str(anchor_wav_path) if anchor_wav_path else "",
                 },
             )
