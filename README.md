@@ -7,7 +7,7 @@
 
 目前實測部署目標是：
 
-- Host: DGX Spark, `192.168.0.110`
+- Host: DGX Spark（以下以 `<DGX_HOST>` 表示其位址）
 - OS: Ubuntu 24.04 / aarch64
 - GPU: NVIDIA GB10
 - Driver/CUDA: driver 580.x, CUDA 13.0
@@ -247,7 +247,7 @@ setsid .venv/bin/python chinese_tts_server.py > chinese-tts-server.log 2>&1 < /d
 開啟：
 
 ```text
-http://192.168.0.110:8792/chinese-tts/
+http://<DGX_HOST>:8792/chinese-tts/
 ```
 
 Health check：
@@ -354,6 +354,12 @@ curl -X POST http://127.0.0.1:8792/api/tts \
 - `segments`: 每段 wav 的 URL 與 RTF。
 - `segment_count`: 段數。
 - `rtf`: real-time factor。
+
+上傳樣本克隆（multipart，欄位 `prompt_wav` + `prompt_text`）時，可用 `clone_mode` 指定樣本的用法：
+
+- `prompt`（預設，原行為）：完整克隆，樣本＋逐字稿接續生成，最像原聲，但會忽略台詞前的 `(語氣)` 指令。
+- `reference`：可控克隆，樣本只作為 `reference_wav_path`，台詞前加 `(生氣)` 等語氣描述才會生效。
+- `both`：兩者並用。
 
 ## Benchmark
 

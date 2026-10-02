@@ -185,6 +185,7 @@ def read_tts_request(handler: SimpleHTTPRequestHandler, stamp: str) -> tuple[dic
             "cfg_value": form_value(form, "cfg_value", "2.0"),
             "inference_timesteps": form_value(form, "inference_timesteps", "10"),
             "stable_voice": bool_value(form_value(form, "stable_voice", "true"), True),
+            "clone_mode": form_value(form, "clone_mode", "prompt"),
         }
         return payload, save_uploaded_sample(form, stamp)
 
@@ -236,6 +237,12 @@ class Handler(SimpleHTTPRequestHandler):
             cfg_value = float(payload.get("cfg_value", 2.0))
             inference_timesteps = int(payload.get("inference_timesteps", 10))
             stable_voice = bool_value(payload.get("stable_voice", True), True)
+            # 上傳樣本的用法：prompt = 完整克隆（樣本＋逐字稿接續，預設、原行為）；
+            # reference = 可控克隆（reference_wav_path，台詞前可加 "(語氣)" 控制情緒）；both = 兩者並用
+            clone_mode = str(payload.get("clone_mode", "prompt") or "prompt").strip()
+            if clone_mode not in ("prompt", "reference", "both"):
+                json_response(self, {"ok": False, "error": "bad_clone_mode"}, HTTPStatus.BAD_REQUEST)
+                return
 
             if not text:
                 json_response(self, {"ok": False, "error": "empty_text"}, HTTPStatus.BAD_REQUEST)
@@ -255,16 +262,18 @@ class Handler(SimpleHTTPRequestHandler):
             anchor_prompt_text = ""
 
             for chunk in chunks:
-                use_uploaded_prompt = uploaded_prompt_wav is not None
-                use_anchor = stable_voice and anchor_wav_path is not None
+                use_reference = uploaded_prompt_wav is not None and clone_mode in ("reference", "both")
+                use_uploaded_prompt = uploaded_prompt_wav is not None and clone_mode in ("prompt", "both")
+                use_anchor = stable_voice and anchor_wav_path is not None and not use_reference
                 prompt_wav_path = uploaded_prompt_wav if use_uploaded_prompt else anchor_wav_path
                 active_prompt_text = prompt_text if use_uploaded_prompt else anchor_prompt_text
-                model_text = chunk.text if use_uploaded_prompt or use_anchor else f"{voice_prefix}{chunk.text}"
+                model_text = chunk.text if use_uploaded_prompt or use_anchor or use_reference else f"{voice_prefix}{chunk.text}"
                 started = time.perf_counter()
                 wav = tts.generate(
                     text=model_text,
                     prompt_wav_path=str(prompt_wav_path) if prompt_wav_path else None,
                     prompt_text=active_prompt_text or None,
+                    reference_wav_path=str(uploaded_prompt_wav) if use_reference else None,
                     cfg_value=cfg_value,
                     inference_timesteps=inference_timesteps,
                     denoise=False,
@@ -322,6 +331,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "chunk_limit": chunk_limit,
                     "stable_voice": stable_voice,
                     "uploaded_prompt": bool(uploaded_prompt_wav),
+                    "clone_mode": clone_mode,
                     "uploaded_prompt_file": str(uploaded_prompt_wav) if uploaded_prompt_wav else "",
                     "has_prompt_text": bool(prompt_text),
                     "anchor_file": str(anchor_wav_path) if anchor_wav_path else "",
